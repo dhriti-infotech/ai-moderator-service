@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: ai-moderator-service
+
+# Using Multimodal AI configuration
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+#    model:
+#      chat: ollama
+    ollama:
+      chat:
+        options:
+          model: llama3.2
+    chat:
+      client:
+        enabled: false
+
+
+server:
+  port: 8080
+
+logging:
+  level:
+    root: INFO
+    com.dhriti.infotech: DEBUG
+  pattern:
+    console: "%green(%d{HH:mm:ss.SSS}) %blue(%-5level) %red([%thread]) %yellow(%logger{15}) - %msg%n"

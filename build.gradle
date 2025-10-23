@@ -6,20 +6,83 @@ plugins {
 
 group = 'com.dhriti.infotech'
 version = '0.0.1-SNAPSHOT'
-sourceCompatibility = '17'
 
-defaultTasks 'bootRun'
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
 
 repositories {
     mavenCentral()
 }
 
-dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+ext {
+    set('springAiVersion', "1.0.3")
 }
 
-test {
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // AI Modal dependencies
+    implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+    implementation 'org.springframework.ai:spring-ai-starter-model-ollama'
+
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+    }
+}
+
+tasks.named('test') {
     useJUnitPlatform()
 }
+
+//
+//defaultTasks 'bootRun'
+//
+//repositories {
+//    mavenCentral()
+//}
+//
+//ext {
+//    springAiVersion = '1.0.0-M2' // ✅ Spring AI milestone version
+//}
+//
+//dependencies {
+//    // ✅ Spring Boot Web Starter
+//    implementation 'org.springframework.boot:spring-boot-starter-web'
+//
+//    // ✅ OpenAPI documentation
+//    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
+//
+//    // ✅ Added from udemy class
+//    implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+//
+//    // ✅ Spring AI HuggingFace Starter
+//    implementation "org.springframework.ai:spring-ai-huggingface-spring-boot-starter"
+//
+//    // (Optional) Add more AI providers as needed:
+//     implementation "org.springframework.ai:spring-ai-openai-spring-boot-starter"
+//    // implementation "org.springframework.ai:spring-ai-redis-spring-boot-starter"
+//    // implementation "org.springframework.ai:spring-ai-pinecone-spring-boot-starter"
+//
+//    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+//}
+//
+//dependencyManagement {
+//    imports {
+//        // ✅ Correctly import the Spring AI BOM
+//        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+//    }
+//}
+//
+//test {
+//    useJUnitPlatform()
+//}

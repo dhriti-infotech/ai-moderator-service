@@ -1,84 +1,85 @@
 package com.dhriti.infotech.service;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import java.util.Collections;
-import java.util.Map;
 
 @Service
 public class AIModeratorService {
-    private static final String GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
-    // The below one is of Jyoti Account
-    private static final String API_KEY = "AIzaSyCes-rShFVk-wrBT1YW9bgLG-K6WbPEo1U";
 
-    public String processQuery(String query) {
+    private static final Logger logger = LoggerFactory.getLogger(AIModeratorService.class);
 
-        if("DhriAI".contains(query.trim())) {
-            return "Hi this DhriAI! How can I help you?";
-        }
-        // Age-restricted keywords (case-insensitive)
-        String[] restrictedWords = {"sex", "penis", "vagina", "porn"};
+//    private final ChatClient chatClient;
+//
+//
+//    public AIModeratorService(ChatClient.Builder chatClientBuilder) {
+//        this.chatClient = chatClientBuilder.build();
+//    }
+
+    private final ChatClient openAiChatClient;
+    private final ChatClient ollamaChatClient;
+
+    public AIModeratorService(@Qualifier("openAiChatClient") ChatClient openAiChatClient,
+                                    @Qualifier("ollamaChatClient") ChatClient ollamaChatClient) {
+        this.openAiChatClient = openAiChatClient;
+        this.ollamaChatClient = ollamaChatClient;
+    }
+
+    public String processQuery(String query, String model) {
+        logger.info("Received query: '{}' for model: '{}'", query, model);
+
+        // 🔒 Simple moderation logic
+        String[] restrictedWords = {"word1", "word2", "word3", "word4"};
         String lowerQuery = query.toLowerCase();
         for (String word : restrictedWords) {
             if (lowerQuery.contains(word)) {
+                logger.info("Query contains restricted word: {}", word);
                 return "Age Restricted Content";
             }
         }
 
-        RestTemplate restTemplate = new RestTemplate();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("X-goog-api-key", API_KEY);
+        ChatClient chatClient = selectChatClient(model);
 
-        Map<String, Object> body = Collections.singletonMap("contents", Collections.singletonList(
-            Collections.singletonMap("parts", Collections.singletonList(
-                Collections.singletonMap("text", query)
-            ))
-        ));
-
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-        ResponseEntity<Map> response;
-        try {
-            response = restTemplate.postForEntity(GEMINI_API_URL, request, Map.class);
-        } catch (HttpClientErrorException e) {
-            if (e.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
-                return "Hi this DhriAI! How can I help you?";
-            }
-            throw e;
+        if (chatClient == null) {
+            logger.error("Unsupported model: {}", model);
+            return "Unsupported AI model. Please verify configuration.";
         }
 
-        if (!response.getStatusCode().is2xxSuccessful()) {
-            if (response.getStatusCode() == HttpStatus.NOT_FOUND) {
-                return "Error: Gemini API endpoint or model not found. Check your API key and endpoint.";
-            }
-            if (response.getStatusCode() == HttpStatus.TOO_MANY_REQUESTS) {
-                return "Hi this DhriAI! How can I help you?";
-            }
-            return "Error: " + response.getStatusCode();
-        }
-
-        Map data = response.getBody();
         try {
-            Object candidates = data.get("candidates");
-            if (candidates instanceof java.util.List && !((java.util.List) candidates).isEmpty()) {
-                Map candidate = (Map) ((java.util.List) candidates).get(0);
-                Map content = (Map) candidate.get("content");
-                java.util.List parts = (java.util.List) content.get("parts");
-                if (parts != null && !parts.isEmpty()) {
-                    Map part = (Map) parts.get(0);
-                    Object text = part.get("text");
-                    return text != null ? text.toString() : "Sorry, I couldn't get a response.";
-                }
-            }
+            logger.info("Sending query to {} model...", model);
+            String response = chatClient
+                    .prompt()
+                    .user(query)
+                    .call()
+                    .content();
+            logger.info("Received response: {}", response);
+            return response;
+        } catch (HttpClientErrorException.NotFound notFoundEx) {
+            logger.error("404 Not Found from LLM API for model {}", model, notFoundEx);
+            return "Sorry, the AI model or endpoint was not found. Please check configuration.";
         } catch (Exception e) {
-            return "Sorry, I couldn't get a response.";
+            logger.error("Error while calling LLM API for model {}", model, e);
+            return "Hi this DhriAI! How can I help you?";
         }
-        return "Sorry, I couldn't get a response.";
+    }
+
+    private ChatClient selectChatClient(String model) {
+        if (model == null) return openAiChatClient; // default fallback
+        String normalized = model.trim().toLowerCase();
+
+        switch (normalized) {
+            case "openai":
+                return openAiChatClient;
+            case "ollama":
+                return ollamaChatClient;
+            default:
+                logger.warn("Unknown model '{}', defaulting to OpenAI", model);
+                return openAiChatClient;
+        }
     }
 }
