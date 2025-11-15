@@ -1,9 +1,11 @@
 package com.dhriti.infotech.service;
 
+//import jakarta.annotation.Resource;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.core.io.Resource;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,12 +16,6 @@ public class AIModeratorService {
 
     private static final Logger logger = LoggerFactory.getLogger(AIModeratorService.class);
 
-//    private final ChatClient chatClient;
-//
-//
-//    public AIModeratorService(ChatClient.Builder chatClientBuilder) {
-//        this.chatClient = chatClientBuilder.build();
-//    }
 
     private final ChatClient openAiChatClient;
     private final ChatClient ollamaChatClient;
@@ -29,6 +25,10 @@ public class AIModeratorService {
         this.openAiChatClient = openAiChatClient;
         this.ollamaChatClient = ollamaChatClient;
     }
+
+    @Value("classpath:/promptTemplates/supportResponseTemplate.st")
+    Resource supportResponseTemplateResource;
+
 
     public String processQuery(String query, String model) {
         logger.info("Received query: '{}' for model: '{}'", query, model);
@@ -54,7 +54,22 @@ public class AIModeratorService {
             logger.info("Sending query to {} model...", model);
             String response = chatClient
                     .prompt()
-                    .user(query)
+                  /*  system role is getting used here, it is restricted as specified role only to respond
+                     Here the system role is defined to limit the AI's responses to HR-related queries only.
+                     Removed the below part to use default system prompt from configuration
+                    .system("""
+                            You are an HR assistant. Answer concisely and professionally,\s
+                            and your role is to provide HR queries related information.
+                            """)
+
+                   */
+
+                    /*
+                    Use system apart from default if we want to override for specific queries
+                     */
+                    .system("You are an Internal IT support assistant. Answer concisely and professionally,\s"+
+                            "and your role is to provide IT support related information only.")
+                    .user(query) // user role is getting used here, others are system etc
                     .call()
                     .content();
             logger.info("Received response: {}", response);
@@ -66,6 +81,22 @@ public class AIModeratorService {
             logger.error("Error while calling LLM API for model {}", model, e);
             return "Hi this DhriAI! How can I help you?";
         }
+    }
+
+    public String processSupportResponseDrafter(String name, String query, String model) {
+        String prompt = String.format("Draft a professional support response for %s regarding the following query: %s", name, query);
+        ChatClient chatClient = selectChatClient(model);
+        return chatClient
+                .prompt()
+                .system("""
+                        You are a professional customer service assistant which helps drafting email
+                        responses to improve the productivity of the customer support team
+                        """)
+                .user(promptTemplateSpec ->
+                        promptTemplateSpec.text(supportResponseTemplateResource)
+                                .param("customerName", name)
+                                .param("customerMessage", query))
+                .call().content();
     }
 
     private ChatClient selectChatClient(String model) {

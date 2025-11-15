@@ -9,15 +9,31 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class ChatClientConfig {
 
+    private static final String DEFAULT_SYSTEM_PROMPT = """
+            You are an Teaching assistant for primary level schools.\s
+            Answer concisely and professionally,\s
+            and your role is to provide education-related information only.
+           \s""";
+
+    private static final String DEFAULT_USER_PROMPT = """
+            How can you help me?
+            """;
+
     @Bean
     public ChatClient openAiChatClient(OpenAiChatModel openAiChatModel) {
-        return ChatClient.create(openAiChatModel);
+        return ChatClient
+                .builder(openAiChatModel)
+                .defaultSystem(DEFAULT_SYSTEM_PROMPT)
+                .defaultUser(DEFAULT_USER_PROMPT)
+                .build();
     }
 
     @Bean
     public ChatClient ollamaChatClient(OllamaChatModel ollamaChatModel) {
-        ChatClient.Builder chatClientBulder = ChatClient.builder(ollamaChatModel);
-        return chatClientBulder.build();
+        return ChatClient
+                .builder(ollamaChatModel)
+                .defaultSystem(DEFAULT_SYSTEM_PROMPT)
+                .defaultUser(DEFAULT_USER_PROMPT)
+                .build();
     }
-
 }
