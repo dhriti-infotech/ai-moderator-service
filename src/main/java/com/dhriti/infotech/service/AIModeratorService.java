@@ -29,6 +29,9 @@ public class AIModeratorService {
     @Value("classpath:/promptTemplates/supportResponseTemplate.st")
     Resource supportResponseTemplateResource;
 
+    @Value("classpath:/PromptStuffing/DIPolicies.st")
+    Resource diPoliciesTemplateResource;
+
 
     public String processQuery(String query, String model) {
         logger.info("Received query: '{}' for model: '{}'", query, model);
@@ -66,9 +69,12 @@ public class AIModeratorService {
 
                     /*
                     Use system apart from default if we want to override for specific queries
-                     */
+
                     .system("You are an Internal IT support assistant. Answer concisely and professionally,\s"+
                             "and your role is to provide IT support related information only.")
+
+                     */
+                    .system(diPoliciesTemplateResource)
                     .user(query) // user role is getting used here, others are system etc
                     .call()
                     .content();
