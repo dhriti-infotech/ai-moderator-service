@@ -1,6 +1,7 @@
 package com.dhriti.infotech.service;
 
 //import jakarta.annotation.Resource;
+import com.dhriti.infotech.advisors.TokenUsageAuditAdvisor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -57,6 +58,7 @@ public class AIModeratorService {
             logger.info("Sending query to {} model...", model);
             String response = chatClient
                     .prompt()
+                    .advisors(new TokenUsageAuditAdvisor())
                   /*  system role is getting used here, it is restricted as specified role only to respond
                      Here the system role is defined to limit the AI's responses to HR-related queries only.
                      Removed the below part to use default system prompt from configuration
